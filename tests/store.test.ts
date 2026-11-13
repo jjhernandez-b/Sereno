@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { createReference, storageMode, toStoredRequest } from '../server/store'
+import {
+  createReference,
+  storageMode,
+  toContactRequestRow,
+  toStoredRequest,
+} from '../server/store'
 import type { ContactRequestData } from '../shared/contact'
 
 const data: ContactRequestData = {
@@ -49,16 +54,58 @@ describe('toStoredRequest', () => {
   })
 })
 
+describe('toContactRequestRow', () => {
+  it('mapea el registro a las columnas snake_case de Supabase', () => {
+    const stored = toStoredRequest(data, 'Valentina Ríos')
+    const row = toContactRequestRow(stored)
+
+    expect(row.reference).toBe(stored.reference)
+    expect(row.created_at).toBe(stored.createdAt)
+    expect(row.professional_slug).toBe('valentina-rios')
+    expect(row.professional_name).toBe('Valentina Ríos')
+    expect(row.full_name).toBe('Ana Pérez')
+    expect(row.email).toBe('ana@example.com')
+    expect(row.phone).toBe('')
+    expect(row.age_range).toBe('25-34')
+    expect(row.country).toBe('Madrid')
+    expect(row.reason).toBe('ansiedad')
+    expect(row.preferred_time).toBe('tarde')
+    expect(row.modality).toBe('video')
+    expect(row.status).toBe('new')
+    expect(row.source).toBe('web')
+    expect('professionalSlug' in row).toBe(false)
+    expect('website' in row).toBe(false)
+  })
+})
+
 describe('storageMode', () => {
-  it('usa memoria cuando no hay variables de Upstash', () => {
-    const previousUrl = process.env.UPSTASH_REDIS_REST_URL
-    const previousToken = process.env.UPSTASH_REDIS_REST_TOKEN
-    delete process.env.UPSTASH_REDIS_REST_URL
-    delete process.env.UPSTASH_REDIS_REST_TOKEN
+  it('usa memoria cuando no hay variables de Supabase', () => {
+    const previousUrl = process.env.SUPABASE_URL
+    const previousKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+    delete process.env.SUPABASE_URL
+    delete process.env.SUPABASE_SERVICE_ROLE_KEY
 
-    expect(storageMode()).toBe('memory')
+    try {
+      expect(storageMode()).toBe('memory')
+    } finally {
+      if (previousUrl !== undefined) process.env.SUPABASE_URL = previousUrl
+      if (previousKey !== undefined) process.env.SUPABASE_SERVICE_ROLE_KEY = previousKey
+    }
+  })
 
-    if (previousUrl !== undefined) process.env.UPSTASH_REDIS_REST_URL = previousUrl
-    if (previousToken !== undefined) process.env.UPSTASH_REDIS_REST_TOKEN = previousToken
+  it('usa Supabase cuando la URL y la service role key están configuradas', () => {
+    const previousUrl = process.env.SUPABASE_URL
+    const previousKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+    process.env.SUPABASE_URL = 'https://example.supabase.co'
+    process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service-role-key'
+
+    try {
+      expect(storageMode()).toBe('supabase')
+    } finally {
+      if (previousUrl === undefined) delete process.env.SUPABASE_URL
+      else process.env.SUPABASE_URL = previousUrl
+      if (previousKey === undefined) delete process.env.SUPABASE_SERVICE_ROLE_KEY
+      else process.env.SUPABASE_SERVICE_ROLE_KEY = previousKey
+    }
   })
 })

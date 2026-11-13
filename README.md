@@ -15,7 +15,7 @@ Plataforma de demostración de salud mental y telemedicina, inspirada en servici
 - [Variables de entorno](#variables-de-entorno)
 - [Scripts](#scripts)
 - [Despliegue en Vercel](#despliegue-en-vercel)
-- [Persistencia con Upstash](#persistencia-con-upstash)
+- [Base de datos con Supabase](#base-de-datos-con-supabase)
 - [Correo con Resend](#correo-con-resend)
 - [App móvil con Capacitor](#app-móvil-con-capacitor)
 - [Tests disponibles](#tests-disponibles)
@@ -53,7 +53,7 @@ Cada test muestra una advertencia clara de que **no es un diagnóstico**, explic
 - API Express 5 expuesta en Vercel mediante `api/[...path].ts`.
 - `GET /api/health`, `GET /api/professionals`, `GET /api/professionals/:slug`, `GET /api/crisis-resources`.
 - `POST /api/contact-requests` con validación Zod compartida, rate limiting (5 solicitudes / 10 min), honeypot y consentimientos obligatorios.
-- Persistencia opcional en Upstash Redis REST y notificación opcional por correo con Resend.
+- Persistencia opcional en Supabase (PostgreSQL) y notificación opcional por correo con Resend.
 - Sin variables de entorno, las solicitudes se guardan solo en memoria y en los logs (modo demo).
 
 ---
@@ -62,6 +62,7 @@ Cada test muestra una advertencia clara de que **no es un diagnóstico**, explic
 
 - **Frontend:** Vite 7, React 19, TypeScript 5.9, Tailwind CSS 4, React Router 7, lucide-react.
 - **Backend:** Node.js 24, Express 5, Zod 4, Helmet, CORS, express-rate-limit.
+- **Base de datos:** Supabase (PostgreSQL) con `@supabase/supabase-js` y RLS.
 - **Móvil:** Capacitor 8 (Android e iOS).
 - **Tests:** Vitest 4.
 - **Tipografías:** Fraunces Variable + Inter Variable (empaquetadas con Fontsource, sin CDN).
@@ -80,7 +81,7 @@ Cada test muestra una advertencia clara de que **no es un diagnóstico**, explic
 │  ├─ app.ts                # Rutas, validación, rate limit
 │  ├─ email.ts              # Notificación con Resend
 │  ├─ index.ts              # Servidor local
-│  └─ store.ts              # Upstash / memoria + referencias
+│  └─ store.ts              # Supabase / memoria + referencias
 ├─ shared/
 │  ├─ contact.ts            # Esquema Zod y etiquetas compartidas
 │  ├─ crisis.ts             # Líneas de ayuda
@@ -94,6 +95,8 @@ Cada test muestra una advertencia clara de que **no es un diagnóstico**, explic
 │  ├─ index.css             # Tema Tailwind v4
 │  └─ main.tsx              # Punto de entrada
 ├─ tests/                   # Pruebas de puntuación, esquema y datos
+├─ supabase/
+│  └─ schema.sql            # Tabla, índices, RLS y limpieza de retención
 ├─ scripts/qa.mjs            # QA de interfaz con Playwright (Edge)
 ├─ capacitor.config.ts
 ├─ vercel.json
@@ -143,8 +146,8 @@ Copia `.env.example` y ajusta lo necesario. Todas son opcionales para desarrollo
 | `PORT` | Puerto de la API local | `3001` |
 | `CORS_ORIGINS` | Orígenes permitidos, separados por comas | `https://app.example.com,capacitor://localhost` |
 | `CONTACT_RATE_LIMIT_MAX` | Máximo de solicitudes de contacto por IP cada 10 min (por defecto 5) | `5` |
-| `UPSTASH_REDIS_REST_URL` | URL REST de Upstash Redis | `https://xxx.upstash.io` |
-| `UPSTASH_REDIS_REST_TOKEN` | Token de Upstash | `AX...` |
+| `SUPABASE_URL` | URL del proyecto de Supabase | `https://xxx.supabase.co` |
+| `SUPABASE_SERVICE_ROLE_KEY` | Service role key (solo servidor, omite RLS) | `eyJ...` |
 | `RESEND_API_KEY` | API key de Resend | `re_...` |
 | `CONTACT_NOTIFICATION_EMAIL` | Destinatario de solicitudes | `equipo@example.com` |
 | `CONTACT_FROM_EMAIL` | Remitente verificado | `Sereno <hola@tudominio.com>` |
@@ -184,7 +187,7 @@ Copia `.env.example` y ajusta lo necesario. Todas son opcionales para desarrollo
    - reescritura SPA que excluye `/api/*`
    - cabeceras de seguridad básicas
 4. Añade las variables de entorno en **Project → Settings → Environment Variables** (opcional pero recomendado):
-   - `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`
+   - `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`
    - `RESEND_API_KEY`, `CONTACT_NOTIFICATION_EMAIL`, `CONTACT_FROM_EMAIL`
    - `CORS_ORIGINS` si vas a consumir la API desde otro origen (por ejemplo, la app móvil)
 5. Despliega. La app queda en `https://tu-proyecto.vercel.app` y la API en `/api`.
@@ -203,18 +206,38 @@ En **Settings → Domains** puedes añadir tu dominio. Actualiza `CONTACT_FROM_E
 
 ---
 
-## Persistencia con Upstash
+## Base de datos con Supabase
 
-En Vercel el sistema de archivos es efímero. Sin base de datos, las solicitudes se pierden al reciclarse la instancia y solo quedan en logs.
+En Vercel el sistema de archivos es efímero. Sin base de datos, las solicitudes se pierden al reciclarse la instancia y solo quedan en logs. Sereno usa **Supabase (PostgreSQL)** para guardar cada solicitud de contacto.
 
-1. Crea una base de datos gratuita en [upstash.com](https://upstash.com).
-2. Copia la **REST URL** y el **REST TOKEN**.
-3. Añádelos como variables de entorno en Vercel.
-4. Redeploy.
+### 1. Crear el proyecto y la tabla
 
-La implementación guarda cada solicitud como `sereno:contact:<referencia>` con TTL de 180 días y mantiene un índice en `sereno:contact:index`. Si Upstash falla, cae a memoria como último recurso y registra el error.
+1. Crea un proyecto en [supabase.com](https://supabase.com). El plan gratuito es suficiente para desarrollo y pruebas.
+2. Abre **SQL Editor → New query**, pega el contenido de [`supabase/schema.sql`](supabase/schema.sql) y ejecútalo.
+3. El script crea la tabla `public.contact_requests`, sus índices, activa RLS sin políticas públicas y define la función de retención `delete_expired_contact_requests()`.
 
-> Para producción real, considera una base de datos con cifrado, control de acceso, auditoría y copias de seguridad, y revisa los plazos de conservación.
+### 2. Configurar las variables de entorno
+
+En **Project Settings → API** copia:
+
+- **Project URL** → `SUPABASE_URL`
+- **service_role key** → `SUPABASE_SERVICE_ROLE_KEY`
+
+Añádelas en `.env` para desarrollo y en **Vercel → Settings → Environment Variables** para producción.
+
+> La `service_role` key omite RLS. Úsala **solo en el servidor**: nunca la prefijes con `VITE_`, no la incluyas en builds de Capacitor y no la expongas al navegador. Para el cliente web no se necesita ninguna clave de Supabase.
+
+### 3. Cómo se guardan los datos
+
+Cada solicitud se inserta en `public.contact_requests` con la referencia `SR-XXXXXX` como clave primaria. El backend mapea el modelo de la aplicación a columnas `snake_case` en `server/store.ts`.
+
+Si Supabase no está configurado o la inserción falla, la solicitud cae a memoria como último recurso para no perderla durante la vida de esa instancia, y el error queda en los logs. El endpoint `/api/health` indica el modo activo en el campo `storage` (`supabase` o `memory`).
+
+### 4. Retención y limpieza
+
+El esquema incluye la función `delete_expired_contact_requests(retention_days)` para borrar solicitudes antiguas (180 días por defecto). Puedes programarla con `pg_cron` usando el ejemplo comentado al final de `supabase/schema.sql`, o con una tarea programada externa.
+
+> El plan gratuito de Supabase puede pausar proyectos con poca actividad. Para producción, usa un plan que garantice disponibilidad, copias de seguridad y cifrado, y revisa los plazos de conservación con asesoría legal.
 
 ---
 
@@ -306,6 +329,7 @@ Puedes cambiar el navegador con `QA_BROWSER_PATH` y la URL con `QA_BASE_URL`. Si
 - Validación con Zod en cliente y servidor, límite de tamaño del cuerpo (32 KB) y rate limiting.
 - Helmet, CORS configurable y cabeceras de seguridad en Vercel.
 - Honeypot para reducir spam.
+- En Supabase, RLS activado sin políticas públicas: solo la `service_role` del backend accede a `contact_requests`. La clave no se expone al cliente.
 - No se muestran datos personales de profesionales reales porque todos los perfiles son ficticios.
 - Los enlaces externos usan `rel="noopener noreferrer"`.
 
@@ -353,7 +377,7 @@ Checklist mínima antes de abrir al público:
 
 ### Operación
 
-- [ ] Configurar Upstash (o base de datos equivalente) y Resend con dominio verificado.
+- [ ] Configurar Supabase (ejecutar `supabase/schema.sql`) y Resend con dominio verificado.
 - [ ] Añadir monitorización, alertas y backups.
 - [ ] Probar carga, accesibilidad y flujo móvil en dispositivos reales.
 - [ ] Definir tiempos de respuesta y soporte.

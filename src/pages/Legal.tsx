@@ -90,9 +90,10 @@ export function Privacy() {
         contractuales adecuadas y no pueden usar los datos para fines propios.
       </p>
       <p>
-        En esta demostración, la persistencia opcional se realiza con Upstash Redis y las
-        notificaciones por correo con Resend. Sin esas variables configuradas, la solicitud solo se
-        conserva en memoria y en los registros del servidor durante la vida de la instancia.
+        En esta demostración, la persistencia opcional se realiza con Supabase
+        (PostgreSQL) y las notificaciones por correo con Resend. Sin esas variables
+        configuradas, la solicitud solo se conserva en memoria y en los registros del
+        servidor durante la vida de la instancia.
       </p>
 
       <h2>6. Transferencias internacionales</h2>
