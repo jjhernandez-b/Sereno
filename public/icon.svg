@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Sereno">
+  <rect width="512" height="512" rx="120" fill="#0c2b27"/>
+  <path d="M118 320c46 0 68-27 96-77 28-49 53-66 88-66 24 0 43 8 55 22" fill="none" stroke="#f8f3e9" stroke-width="33" stroke-linecap="round"/>
+  <circle cx="382" cy="344" r="34" fill="#d96b52"/>
+</svg>
