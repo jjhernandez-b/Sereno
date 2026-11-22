@@ -1,6 +1,8 @@
 import { randomBytes } from 'node:crypto'
-import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import type { ContactRequestData } from '../shared/contact'
+import { getSupabaseClient, getSupabaseConfig } from './supabase'
+
+export { storageMode } from './supabase'
 
 export interface StoredContactRequest {
   reference: string
@@ -54,39 +56,25 @@ export function createReference(): string {
 /** Almacenamiento en memoria solo para desarrollo local. */
 const memoryStore: StoredContactRequest[] = []
 
-interface SupabaseConfig {
-  url: string
-  key: string
-}
-
-function getSupabaseConfig(): SupabaseConfig | null {
-  const url = process.env.SUPABASE_URL?.trim().replace(/\/+$/, '')
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()
-  if (!url || !key) return null
-  return { url, key }
-}
-
-let cachedClient: { url: string; key: string; client: SupabaseClient } | null = null
-
-function getSupabaseClient(config: SupabaseConfig): SupabaseClient {
-  if (cachedClient?.url === config.url && cachedClient.key === config.key) {
-    return cachedClient.client
+/** Restaura una solicitud desde una fila de Supabase. */
+export function fromContactRequestRow(row: ContactRequestRow): StoredContactRequest {
+  return {
+    reference: row.reference,
+    createdAt: row.created_at,
+    professionalSlug: row.professional_slug,
+    professionalName: row.professional_name,
+    fullName: row.full_name,
+    email: row.email,
+    phone: row.phone ?? '',
+    ageRange: row.age_range,
+    country: row.country ?? '',
+    reason: row.reason,
+    message: row.message,
+    preferredTime: row.preferred_time,
+    modality: row.modality,
+    status: row.status === 'new' ? 'new' : 'new',
+    source: 'web',
   }
-
-  const client = createClient(config.url, config.key, {
-    auth: { persistSession: false, autoRefreshToken: false },
-    global: {
-      headers: { 'X-Client-Info': 'sereno-web' },
-      fetch: (input, init) => fetch(input, { ...init, signal: AbortSignal.timeout(8000) }),
-    },
-  })
-
-  cachedClient = { ...config, client }
-  return client
-}
-
-export function storageMode(): 'supabase' | 'memory' {
-  return getSupabaseConfig() ? 'supabase' : 'memory'
 }
 
 export function toContactRequestRow(request: StoredContactRequest): ContactRequestRow {
@@ -148,6 +136,36 @@ export async function persistContactRequest(
 
 export function readMemoryRequests(): StoredContactRequest[] {
   return [...memoryStore]
+}
+
+/**
+ * Lista las solicitudes recibidas para el panel del desarrollador. En modo
+ * memoria solo devuelve las de esta instancia; en Supabase consulta la tabla
+ * ordenada de más reciente a más antigua.
+ */
+export async function listContactRequests(): Promise<{
+  storage: 'supabase' | 'memory'
+  requests: StoredContactRequest[]
+}> {
+  const config = getSupabaseConfig()
+
+  if (!config) {
+    return { storage: 'memory', requests: [...memoryStore].reverse() }
+  }
+
+  const client = getSupabaseClient(config)
+  const { data, error } = await client
+    .from(TABLE)
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(200)
+
+  if (error) throw new Error(error.message)
+
+  return {
+    storage: 'supabase',
+    requests: (data ?? []).map((row) => fromContactRequestRow(row as ContactRequestRow)),
+  }
 }
 
 export function toStoredRequest(

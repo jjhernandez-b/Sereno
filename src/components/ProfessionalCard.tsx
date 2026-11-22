@@ -48,13 +48,16 @@ export function ProfessionalCard({ professional, className }: ProfessionalCardPr
       </div>
 
       <div className="mt-4 flex-1 space-y-1.5 text-[0.75rem] text-muted">
-        <p className="flex items-center gap-1.5">
-          <MapPin className="h-3.5 w-3.5 text-forest-400" aria-hidden="true" />
-          {professional.location}, {professional.country}
-        </p>
+        {(professional.location || professional.country) && (
+          <p className="flex items-center gap-1.5">
+            <MapPin className="h-3.5 w-3.5 text-forest-400" aria-hidden="true" />
+            {[professional.location, professional.country].filter(Boolean).join(', ')}
+          </p>
+        )}
         <p className="flex items-center gap-1.5">
           <Globe2 className="h-3.5 w-3.5 text-forest-400" aria-hidden="true" />
-          {professional.languages.join(' · ')} · {professional.experienceYears} años de experiencia
+          {professional.languages.join(' · ')} · {professional.experienceYears}{' '}
+          {professional.experienceYears === 1 ? 'año' : 'años'} de experiencia
         </p>
       </div>
 

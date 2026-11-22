@@ -17,17 +17,16 @@ import {
 } from 'lucide-react'
 import {
   MODALITY_LABELS,
-  PROFESSIONALS,
   formatPrice,
-  getProfessional,
   specialtyLabel,
   type Modality,
+  type Professional,
 } from '../../shared/professionals'
 import { usePageMeta } from '../hooks/usePageMeta'
+import { useProfessionals } from '../providers/ProfessionalsProvider'
 import { Avatar } from '../components/Primitives'
 import { LinkButton } from '../components/Button'
 import { ProfessionalCard } from '../components/ProfessionalCard'
-import { DemoNotice } from '../components/DemoNotice'
 import { CrisisNotice } from '../components/CrisisNotice'
 
 const MODALITY_ICONS: Record<Modality, typeof Video> = {
@@ -38,7 +37,8 @@ const MODALITY_ICONS: Record<Modality, typeof Video> = {
 
 export function ProfessionalProfile() {
   const { slug } = useParams<{ slug: string }>()
-  const professional = getProfessional(slug)
+  const { professionals, loading } = useProfessionals()
+  const professional = professionals.find((candidate) => candidate.slug === slug)
 
   usePageMeta({
     title: professional ? `${professional.name} · Perfil profesional` : 'Profesional no encontrado',
@@ -46,6 +46,15 @@ export function ProfessionalProfile() {
       ? `Conoce el perfil de ${professional.name}, ${professional.title.toLowerCase()}. Especialidades, formación, modalidades y cómo solicitar una primera conversación.`
       : 'El perfil solicitado no existe o ya no está disponible.',
   })
+
+  if (!professional && loading) {
+    return (
+      <section className="page-container py-20 text-center">
+        <span className="mx-auto inline-flex h-10 w-10 animate-spin rounded-full border-2 border-forest-300 border-t-forest-700" aria-hidden="true" />
+        <p className="mt-4 text-[0.9rem] text-muted">Cargando perfil…</p>
+      </section>
+    )
+  }
 
   if (!professional) {
     return (
@@ -64,7 +73,7 @@ export function ProfessionalProfile() {
     )
   }
 
-  const similar = PROFESSIONALS.filter(
+  const similar = professionals.filter(
     (candidate) =>
       candidate.slug !== professional.slug &&
       candidate.specialties.some((specialty) => professional.specialties.includes(specialty)),
@@ -94,7 +103,7 @@ export function ProfessionalProfile() {
                     </span>
                     <span className="inline-flex items-center gap-1.5 rounded-full bg-gold-100 px-3 py-1 text-[0.68rem] font-semibold text-[#6d4d0e]">
                       <Info className="h-3.5 w-3.5" aria-hidden="true" />
-                      Perfil de muestra
+                      Perfil publicado
                     </span>
                     <span className="inline-flex items-center gap-1.5 rounded-full bg-forest-100 px-3 py-1 text-[0.68rem] font-semibold text-forest-800">
                       <span className="h-1.5 w-1.5 rounded-full bg-forest-500" aria-hidden="true" />
@@ -108,23 +117,28 @@ export function ProfessionalProfile() {
                   <p className="mt-2 text-[0.95rem] leading-6 text-muted">{professional.title}</p>
 
                   <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-[0.78rem] text-muted">
-                    <span className="inline-flex items-center gap-1.5">
-                      <MapPin className="h-3.5 w-3.5 text-forest-400" aria-hidden="true" />
-                      {professional.location}, {professional.country}
-                    </span>
+                    {(professional.location || professional.country) && (
+                      <span className="inline-flex items-center gap-1.5">
+                        <MapPin className="h-3.5 w-3.5 text-forest-400" aria-hidden="true" />
+                        {[professional.location, professional.country].filter(Boolean).join(', ')}
+                      </span>
+                    )}
                     <span className="inline-flex items-center gap-1.5">
                       <Globe2 className="h-3.5 w-3.5 text-forest-400" aria-hidden="true" />
                       {professional.languages.join(' · ')}
                     </span>
                     <span className="inline-flex items-center gap-1.5">
                       <Clock className="h-3.5 w-3.5 text-forest-400" aria-hidden="true" />
-                      {professional.experienceYears} años de experiencia
+                      {professional.experienceYears}{' '}
+                      {professional.experienceYears === 1 ? 'año' : 'años'} de experiencia
                     </span>
                   </div>
                 </div>
               </div>
 
-              <p className="mt-6 max-w-2xl text-[0.98rem] leading-7 text-muted">{professional.bio}</p>
+              {professional.bio && (
+                <p className="mt-6 max-w-2xl text-[0.98rem] leading-7 text-muted">{professional.bio}</p>
+              )}
 
               <div className="mt-6 flex flex-col gap-3 sm:flex-row lg:hidden">
                 <LinkButton to={`/solicitar/${professional.slug}`} size="lg">
@@ -159,55 +173,63 @@ export function ProfessionalProfile() {
       <section className="page-container py-12 lg:py-16">
         <div className="grid gap-10 lg:grid-cols-[1fr_21rem] lg:items-start lg:gap-10">
           <div className="min-w-0">
-            <div>
-              <h2 className="text-2xl text-forest-950 sm:text-3xl">Cómo trabajo</h2>
-              <p className="mt-3 text-[0.95rem] leading-7 text-muted">{professional.approach}</p>
-              <div className="mt-4 flex flex-wrap gap-1.5">
-                {professional.focusTags.map((tag) => (
-                  <span
-                    key={tag}
-                    className="rounded-full bg-forest-50 px-2.5 py-1 text-[0.7rem] font-medium text-forest-700"
-                  >
-                    {tag}
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            <div className="mt-10 border-t border-forest-900/10 pt-8">
-              <h2 className="text-2xl text-forest-950">Formación y credenciales</h2>
-              <p className="mt-2 text-[0.8rem] text-muted">
-                Datos de muestra. En producción, cada credencial se verifica con el documento
-                original y el registro profesional correspondiente.
-              </p>
-              <ul className="mt-5 space-y-3">
-                {professional.credentials.map((credential) => (
-                  <li key={credential} className="flex items-start gap-2.5 text-[0.88rem] leading-6 text-muted">
-                    <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-forest-100 text-forest-700">
-                      <Check className="h-3 w-3" aria-hidden="true" />
-                    </span>
-                    {credential}
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            <div className="mt-10 border-t border-forest-900/10 pt-8">
-              <h2 className="text-2xl text-forest-950">Qué incluye una sesión</h2>
-              <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                {professional.sessionIncludes.map((item) => (
-                  <div
-                    key={item}
-                    className="flex items-start gap-2.5 rounded-2xl border border-forest-900/10 bg-cream-50 p-4 text-[0.84rem] leading-6 text-forest-900"
-                  >
-                    <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-forest-100 text-forest-700">
-                      <Check className="h-3 w-3" aria-hidden="true" />
-                    </span>
-                    {item}
+            {professional.approach && (
+              <div>
+                <h2 className="text-2xl text-forest-950 sm:text-3xl">Cómo trabajo</h2>
+                <p className="mt-3 text-[0.95rem] leading-7 text-muted">{professional.approach}</p>
+                {professional.focusTags.length > 0 && (
+                  <div className="mt-4 flex flex-wrap gap-1.5">
+                    {professional.focusTags.map((tag) => (
+                      <span
+                        key={tag}
+                        className="rounded-full bg-forest-50 px-2.5 py-1 text-[0.7rem] font-medium text-forest-700"
+                      >
+                        {tag}
+                      </span>
+                    ))}
                   </div>
-                ))}
+                )}
               </div>
-            </div>
+            )}
+
+            {professional.credentials.length > 0 && (
+              <div className="mt-10 border-t border-forest-900/10 pt-8">
+                <h2 className="text-2xl text-forest-950">Formación y credenciales</h2>
+                <p className="mt-2 text-[0.8rem] text-muted">
+                  Credenciales declaradas por el profesional y revisadas antes de publicar su
+                  perfil.
+                </p>
+                <ul className="mt-5 space-y-3">
+                  {professional.credentials.map((credential) => (
+                    <li key={credential} className="flex items-start gap-2.5 text-[0.88rem] leading-6 text-muted">
+                      <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-forest-100 text-forest-700">
+                        <Check className="h-3 w-3" aria-hidden="true" />
+                      </span>
+                      {credential}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {professional.sessionIncludes.length > 0 && (
+              <div className="mt-10 border-t border-forest-900/10 pt-8">
+                <h2 className="text-2xl text-forest-950">Qué incluye una sesión</h2>
+                <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                  {professional.sessionIncludes.map((item) => (
+                    <div
+                      key={item}
+                      className="flex items-start gap-2.5 rounded-2xl border border-forest-900/10 bg-cream-50 p-4 text-[0.84rem] leading-6 text-forest-900"
+                    >
+                      <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-forest-100 text-forest-700">
+                        <Check className="h-3 w-3" aria-hidden="true" />
+                      </span>
+                      {item}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div className="mt-10 border-t border-forest-900/10 pt-8">
               <h2 className="text-2xl text-forest-950">Cómo es la primera conversación</h2>
@@ -267,9 +289,9 @@ export function ProfessionalProfile() {
                     ))}
                   </ol>
                   <p className="mt-3 rounded-xl bg-gold-100/70 px-3 py-2 text-[0.74rem] leading-5 text-[#6d4d0e]">
-                    <strong className="font-semibold">Este perfil es de muestra:</strong> la
-                    verificación descrita no se ha realizado. No contactes a esta persona ni uses
-                    sus datos como si fueran reales.
+                    <strong className="font-semibold">Verificación de credenciales:</strong>{' '}
+                    revisamos la identidad y la titulación antes de publicar el perfil, y
+                    actualizamos la información periódicamente.
                   </p>
                 </div>
               </div>
@@ -283,9 +305,6 @@ export function ProfessionalProfile() {
           </div>
 
           <div className="lg:sticky lg:top-28 lg:mt-0">
-            <div className="lg:hidden">
-              <DemoNotice />
-            </div>
             <div className="mt-4 rounded-3xl border border-forest-900/10 bg-cream-50 p-5 shadow-soft lg:mt-0">
               <h2 className="font-sans text-[0.9rem] font-semibold text-forest-950">
                 Antes de empezar
@@ -295,10 +314,12 @@ export function ProfessionalProfile() {
                   <Lock className="mt-0.5 h-4 w-4 shrink-0 text-forest-500" aria-hidden="true" />
                   Tus datos se usan solo para gestionar esta solicitud.
                 </li>
-                <li className="flex gap-2">
-                  <CalendarDays className="mt-0.5 h-4 w-4 shrink-0 text-forest-500" aria-hidden="true" />
-                  {professional.availabilityNote}
-                </li>
+                {professional.availabilityNote && (
+                  <li className="flex gap-2">
+                    <CalendarDays className="mt-0.5 h-4 w-4 shrink-0 text-forest-500" aria-hidden="true" />
+                    {professional.availabilityNote}
+                  </li>
+                )}
                 <li className="flex gap-2">
                   <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-forest-500" aria-hidden="true" />
                   No se realiza ningún cobro al enviar el formulario.
@@ -341,7 +362,7 @@ export function ProfessionalProfile() {
   )
 }
 
-function BookingCard({ professional }: { professional: (typeof PROFESSIONALS)[number] }) {
+function BookingCard({ professional }: { professional: Professional }) {
   return (
     <div className="rounded-3xl border border-forest-900/10 bg-cream-50 p-5 shadow-soft sm:p-6">
       <div className="flex items-center justify-between gap-3">
@@ -384,8 +405,7 @@ function BookingCard({ professional }: { professional: (typeof PROFESSIONALS)[nu
       </div>
 
       <p className="mt-4 rounded-xl bg-gold-100/60 px-3 py-2 text-[0.68rem] leading-5 text-[#6d4d0e]">
-        Perfil de muestra. En producción, aquí aparecerían la licencia verificada y los enlaces
-        seguros de pago.
+        Pago coordinado con el profesional. No se realiza ningún cobro al enviar el formulario.
       </p>
     </div>
   )

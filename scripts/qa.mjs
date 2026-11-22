@@ -30,6 +30,22 @@ function record(name, ok, detail = '') {
 
 const browser = await chromium.launch({ executablePath: EDGE, headless: true })
 
+// El directorio puede venir de Supabase o del respaldo interno: usamos el
+// primer profesional disponible para que la QA no dependa de un slug fijo.
+const directoryResponse = await fetch(`${BASE}/api/professionals`)
+const directory = await directoryResponse.json()
+const professional = directory?.professionals?.[0]
+
+if (!professional?.slug || !professional?.name) {
+  console.error('No se pudo obtener un profesional del directorio para ejecutar la QA.')
+  await browser.close()
+  process.exit(1)
+}
+
+const professionalSlug = professional.slug
+const professionalName = professional.name
+const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
 async function newPage(viewport = { width: 1440, height: 1000 }) {
   const context = await browser.newContext({ viewport, locale: 'es-ES' })
   const page = await context.newPage()
@@ -45,8 +61,8 @@ async function newPage(viewport = { width: 1440, height: 1000 }) {
 const routes = [
   { path: '/', h1: /Tu mente merece/ },
   { path: '/profesionales', h1: /Encuentra a la persona/ },
-  { path: '/profesionales/valentina-rios', h1: /Valentina Ríos/ },
-  { path: '/solicitar/valentina-rios', h1: /Da el primer paso/ },
+  { path: `/profesionales/${professionalSlug}`, h1: new RegExp(escapeRegExp(professionalName)) },
+  { path: `/solicitar/${professionalSlug}`, h1: /Da el primer paso/ },
   { path: '/tests', h1: /Entiende lo que sientes/ },
   { path: '/tests/phq-9', h1: /PHQ-9/ },
   { path: '/tests/gad-7', h1: /GAD-7/ },
@@ -56,6 +72,7 @@ const routes = [
   { path: '/privacidad', h1: /Política de privacidad/ },
   { path: '/terminos', h1: /Términos de uso/ },
   { path: '/aviso-medico', h1: /Aviso médico/ },
+  { path: '/admin', h1: /Panel del desarrollador/ },
   { path: '/ruta-inexistente', h1: /Esta página se perdió/ },
 ]
 
@@ -124,7 +141,30 @@ record(
 )
 
 // --- Flujo de contacto ------------------------------------------------------
-await page.goto(`${BASE}/solicitar/valentina-rios`, { waitUntil: 'networkidle' })
+// Interceptamos el POST para no escribir solicitudes de prueba en Supabase.
+// La persistencia real se cubre en las pruebas de API y en mock-admin-check.
+await page.route('**/api/contact-requests', async (route) => {
+  if (route.request().method() !== 'POST') {
+    await route.continue()
+    return
+  }
+
+  await route.fulfill({
+    status: 201,
+    contentType: 'application/json',
+    body: JSON.stringify({
+      ok: true,
+      reference: 'SR-QA1234',
+      receivedAt: new Date().toISOString(),
+      emailNotified: false,
+      persisted: true,
+      message:
+        'Tu solicitud fue enviada. El equipo de Sereno te contactará por correo en un plazo orientativo de 24 a 48 horas hábiles.',
+    }),
+  })
+})
+
+await page.goto(`${BASE}/solicitar/${professionalSlug}`, { waitUntil: 'networkidle' })
 await page.getByLabel(/Nombre completo/).fill('Ana QA')
 await page.getByLabel(/Correo electrónico/).fill('ana.qa@example.com')
 await page.getByLabel(/Teléfono/).fill('+34 600 111 222')
@@ -172,7 +212,7 @@ record(
 )
 
 // --- Validación del formulario ---------------------------------------------
-await page.goto(`${BASE}/solicitar/valentina-rios`, { waitUntil: 'networkidle' })
+await page.goto(`${BASE}/solicitar/${professionalSlug}`, { waitUntil: 'networkidle' })
 await page.getByRole('button', { name: /Enviar solicitud/ }).click()
 await page.waitForTimeout(300)
 const validationText = (await page.locator('main').innerText()).replace(/\s+/g, ' ')

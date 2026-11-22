@@ -163,15 +163,15 @@ export function Terms() {
     <LegalLayout
       eyebrow="Legal"
       title="Términos de uso"
-      intro="Estas condiciones explican qué es Sereno, qué no es y qué puedes esperar de esta demostración. Al usar el sitio, aceptas estos términos en su versión vigente."
+      intro="Estas condiciones explican qué es Sereno, qué no es y qué puedes esperar del servicio. Al usar el sitio, aceptas estos términos en su versión vigente."
       updatedAt="11 de noviembre de 2026"
     >
       <h2>1. Naturaleza del servicio</h2>
       <p>
-        Sereno es una plataforma de demostración que muestra cómo podría funcionar un servicio de
-        orientación y contacto con profesionales de salud mental. No es un centro sanitario, no
-        presta atención clínica, no emite diagnósticos ni receta medicamentos. Los perfiles
-        profesionales incluidos son ficticios y están marcados como datos de muestra.
+        Sereno es una plataforma que conecta a personas con profesionales de salud mental. No es un
+        centro sanitario, no presta atención clínica, no emite diagnósticos ni receta medicamentos.
+        Los perfiles publicados se gestionan desde el panel del equipo y deben contar con el
+        consentimiento del profesional.
       </p>
 
       <h2>2. No es un servicio de emergencias</h2>
@@ -200,7 +200,7 @@ export function Terms() {
 
       <h2>5. Profesionales y verificación</h2>
       <p>
-        En producción, la publicación de un perfil requerirá verificar identidad, titulación,
+        En la publicación de un perfil se verifica la identidad, la titulación,
         licencia o registro profesional vigente, experiencia y estado ético, con revisión periódica.
         La plataforma debe informar con claridad del alcance de esa verificación y de cualquier
         limitación. Salvo que se indique lo contrario, Sereno no garantiza resultados terapéuticos.
@@ -208,7 +208,7 @@ export function Terms() {
 
       <h2>6. Precios y pagos</h2>
       <p>
-        Los precios mostrados en esta demostración son orientativos, en dólares estadounidenses y
+        Los precios mostrados son orientativos, en dólares estadounidenses y
         por sesión de 50 minutos. No se realiza ningún cobro al enviar el formulario. En un servicio
         real, las tarifas, la duración, la política de cancelación y los impuestos deben mostrarse
         antes de contratar y procesarse por pasarelas seguras.

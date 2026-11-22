@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import {
   ArrowRight,
@@ -17,16 +18,16 @@ import {
   Users,
   Video,
 } from 'lucide-react'
-import { PROFESSIONALS, SPECIALTIES, formatPrice } from '../../shared/professionals'
+import { ROLE_LABELS, SPECIALTIES, formatPrice } from '../../shared/professionals'
 import { SCREENINGS } from '../lib/screening'
 import { usePageMeta } from '../hooks/usePageMeta'
+import { useProfessionals } from '../providers/ProfessionalsProvider'
 import { LinkButton } from '../components/Button'
 import { ProfessionalCard } from '../components/ProfessionalCard'
 import { MatchQuiz } from '../components/MatchQuiz'
 import { MoodCheckIn } from '../components/MoodCheckIn'
 import { Avatar, InfoBanner, SectionHeading } from '../components/Primitives'
 import { FaqList, type FaqItem } from '../components/FaqList'
-import { DemoNotice } from '../components/DemoNotice'
 
 const FEATURES = [
   { icon: Video, label: 'Sesiones por video o chat' },
@@ -60,7 +61,7 @@ const PRINCIPLES = [
   {
     icon: ShieldCheck,
     title: 'Verificación, no suposiciones',
-    text: 'En producción, cada profesional pasa por un proceso documentado de identidad, titulación y licencia antes de publicar su perfil.',
+    text: 'Cada profesional pasa por un proceso documentado de identidad, titulación y licencia antes de publicar su perfil.',
   },
   {
     icon: BookOpen,
@@ -88,12 +89,12 @@ const FAQS: FaqItem[] = [
   {
     question: '¿Cuánto cuesta una sesión?',
     answer:
-      'En esta demostración los precios son orientativos y van de US$35 a US$70 por sesión de 50 minutos. En un servicio real, cada profesional define su tarifa y se muestra antes de solicitar la cita. Te recomendamos preguntar por el valor total, la duración y la política de cancelación antes de comenzar.',
+      'Cada profesional define su tarifa y la verás en su perfil antes de solicitar la cita. Los precios están en dólares estadounidenses y corresponden a una sesión de 50 minutos. Te recomendamos preguntar por el valor total, la duración y la política de cancelación antes de comenzar.',
   },
   {
     question: '¿Cómo sé que un profesional está capacitado?',
     answer:
-      'En producción verificamos identidad, titulación, licencia o registro profesional vigente y buena reputación, y revisamos que la información del perfil sea coherente. En esta demo los perfiles son ficticios y aparecen marcados como muestra. Nunca publiques perfiles reales sin su consentimiento y sin completar la verificación.',
+      'Verificamos identidad, titulación, licencia o registro profesional vigente y buena reputación, y revisamos que la información del perfil sea coherente. Si detectas algún dato incorrecto, escríbenos para revisarlo.',
   },
   {
     question: '¿Qué hago si estoy en crisis?',
@@ -112,10 +113,28 @@ const FAQS: FaqItem[] = [
   },
 ]
 
-const FEATURED = PROFESSIONALS.filter((professional) => professional.featured).slice(0, 3)
-const FEATURED_SPECIALTIES = Array.from(new Set(FEATURED.flatMap((professional) => professional.specialties))).slice(0, 4)
-
 export function Home() {
+  const { professionals } = useProfessionals()
+
+  const featured = useMemo(() => {
+    const marked = professionals.filter((professional) => professional.featured).slice(0, 3)
+    return marked.length > 0 ? marked : professionals.slice(0, 3)
+  }, [professionals])
+
+  const featuredSpecialties = useMemo(
+    () =>
+      Array.from(new Set(featured.flatMap((professional) => professional.specialties))).slice(0, 4),
+    [featured],
+  )
+
+  const priceRange = useMemo(() => {
+    if (professionals.length === 0) return null
+    const prices = professionals.map((professional) => professional.priceUsd)
+    return { min: Math.min(...prices), max: Math.max(...prices) }
+  }, [professionals])
+
+  const heroProfessional = featured[0] ?? professionals[0]
+
   usePageMeta({
     title: 'Terapia online a tu ritmo',
     description:
@@ -217,15 +236,19 @@ export function Home() {
                 </p>
 
                 <div className="relative mt-6 flex items-center gap-3 rounded-2xl border border-cream-50/10 bg-cream-50/[0.06] p-3">
-                  <Avatar name="Valentina Ríos" tone={0} size="sm" online />
-                  <div className="min-w-0">
-                    <p className="truncate text-[0.85rem] font-semibold text-cream-50">
-                      Valentina Ríos
-                    </p>
-                    <p className="truncate text-[0.66rem] text-cream-200/60">
-                      Psicóloga clínica · En línea
-                    </p>
-                  </div>
+                  {heroProfessional && (
+                    <>
+                      <Avatar name={heroProfessional.name} tone={heroProfessional.avatarTone} size="sm" online />
+                      <div className="min-w-0">
+                        <p className="truncate text-[0.85rem] font-semibold text-cream-50">
+                          {heroProfessional.name}
+                        </p>
+                        <p className="truncate text-[0.66rem] text-cream-200/60">
+                          {ROLE_LABELS[heroProfessional.role]} · En línea
+                        </p>
+                      </div>
+                    </>
+                  )}
                   <div className="ml-auto flex gap-1.5">
                     <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-cream-50/10 text-cream-100">
                       <Video className="h-4 w-4" aria-hidden="true" />
@@ -377,15 +400,13 @@ export function Home() {
         </div>
 
         <div className="mt-8 grid gap-4 md:grid-cols-3">
-          {FEATURED.map((professional) => (
+          {featured.map((professional) => (
             <ProfessionalCard key={professional.slug} professional={professional} />
           ))}
         </div>
 
-        <DemoNotice className="mt-5" />
-
         <div className="mt-5 flex flex-wrap gap-2">
-          {FEATURED_SPECIALTIES.map((specialty) => (
+          {featuredSpecialties.map((specialty) => (
             <Link
               key={specialty}
               to={`/profesionales?especialidad=${specialty}`}
@@ -395,7 +416,7 @@ export function Home() {
             </Link>
           ))}
           <span className="inline-flex items-center px-2 text-[0.72rem] text-muted">
-            y {SPECIALTIES.length - FEATURED_SPECIALTIES.length} especialidades más
+            y {SPECIALTIES.length - featuredSpecialties.length} especialidades más
           </span>
         </div>
       </section>
@@ -523,9 +544,8 @@ export function Home() {
                 Transparencia desde el inicio
               </p>
               <p className="mt-2 text-[0.78rem] leading-6 text-muted">
-                Esta es una demo funcional: los profesionales son ficticios y el servicio aún no
-                presta atención real. Antes de publicar, sustituye los datos y completa el proceso
-                legal y clínico.
+                Los perfiles muestran formación, enfoque y tarifas para que puedas decidir con
+                información. Los tests son herramientas de tamizaje, no diagnósticos.
               </p>
               <Link
                 to="/crisis"
@@ -572,12 +592,13 @@ export function Home() {
                 Empezar con un test
               </LinkButton>
             </div>
-            <p className="mt-5 text-[0.7rem] text-muted">
-              Ejemplo de precios y disponibilidad:{' '}
-              {formatPrice(Math.min(...PROFESSIONALS.map((professional) => professional.priceUsd)))}–
-              {formatPrice(Math.max(...PROFESSIONALS.map((professional) => professional.priceUsd)))}{' '}
-              por sesión (datos de muestra).
-            </p>
+            {priceRange && (
+              <p className="mt-5 text-[0.7rem] text-muted">
+                Ejemplo de precios y disponibilidad: {formatPrice(priceRange.min)}
+                {priceRange.max !== priceRange.min ? `–${formatPrice(priceRange.max)}` : ''} por
+                sesión.
+              </p>
+            )}
           </div>
         </div>
       </section>

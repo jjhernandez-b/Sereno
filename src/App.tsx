@@ -34,6 +34,7 @@ const Terms = lazy(() => import('./pages/Legal').then((module) => ({ default: mo
 const MedicalDisclaimer = lazy(() =>
   import('./pages/Legal').then((module) => ({ default: module.MedicalDisclaimer })),
 )
+const Admin = lazy(() => import('./pages/Admin').then((module) => ({ default: module.Admin })))
 const NotFound = lazy(() =>
   import('./pages/NotFound').then((module) => ({ default: module.NotFound })),
 )
@@ -54,6 +55,7 @@ export function App() {
         <Route path="privacidad" element={<Privacy />} />
         <Route path="terminos" element={<Terms />} />
         <Route path="aviso-medico" element={<MedicalDisclaimer />} />
+        <Route path="admin" element={<Admin />} />
         <Route path="*" element={<NotFound />} />
       </Route>
     </Routes>

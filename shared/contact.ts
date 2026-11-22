@@ -116,6 +116,32 @@ export interface ContactConfirmation {
   persisted: boolean
 }
 
+/** Solicitud tal como se muestra en el panel del desarrollador. */
+export interface AdminContactRequest {
+  reference: string
+  createdAt: string
+  professionalSlug: string
+  professionalName: string
+  fullName: string
+  email: string
+  phone: string
+  ageRange: string
+  country: string
+  reason: string
+  message: string
+  preferredTime: string
+  modality: string
+  status: string
+  source: string
+}
+
+export interface AdminContactRequestsResponse {
+  ok: true
+  storage: 'supabase' | 'memory'
+  count: number
+  requests: AdminContactRequest[]
+}
+
 export function toFieldErrors(error: z.ZodError): Record<string, string> {
   const result: Record<string, string> = {}
   for (const issue of error.issues) {

@@ -12,14 +12,13 @@ import {
 } from 'lucide-react'
 import {
   MODALITY_LABELS,
-  PROFESSIONALS,
   SPECIALTIES,
   type Modality,
   type SpecialtyId,
 } from '../../shared/professionals'
 import { usePageMeta } from '../hooks/usePageMeta'
+import { useProfessionals } from '../providers/ProfessionalsProvider'
 import { ProfessionalCard } from '../components/ProfessionalCard'
-import { DemoNotice } from '../components/DemoNotice'
 import { LinkButton } from '../components/Button'
 import { SectionHeading } from '../components/Primitives'
 import { cn } from '../lib/format'
@@ -39,7 +38,6 @@ const SORT_OPTIONS = [
 ]
 
 const MODALITIES: Modality[] = ['video', 'chat', 'telefono']
-const LANGUAGES = ['Español', 'Inglés', 'Portugués']
 
 export function Directory() {
   usePageMeta({
@@ -50,6 +48,15 @@ export function Directory() {
 
   const [searchParams, setSearchParams] = useSearchParams()
   const [filtersOpen, setFiltersOpen] = useState(false)
+  const { professionals } = useProfessionals()
+
+  const languageOptions = useMemo(
+    () =>
+      Array.from(new Set(professionals.flatMap((professional) => professional.languages))).sort(
+        (a, b) => a.localeCompare(b, 'es'),
+      ),
+    [professionals],
+  )
 
   const query = searchParams.get('q') ?? ''
   const specialty = searchParams.get('especialidad') ?? ''
@@ -73,7 +80,7 @@ export function Directory() {
     const normalizedQuery = query.trim().toLowerCase()
     const maxPrice = price ? Number(price) : null
 
-    const results = PROFESSIONALS.filter((professional) => {
+    const results = professionals.filter((professional) => {
       const matchesSpecialty =
         !specialty || professional.specialties.includes(specialty as SpecialtyId)
       const matchesModality = !modality || professional.modalities.includes(modality as Modality)
@@ -108,7 +115,7 @@ export function Directory() {
       if (sort === 'experiencia') return b.experienceYears - a.experienceYears
       return Number(Boolean(b.featured)) - Number(Boolean(a.featured)) || b.experienceYears - a.experienceYears
     })
-  }, [query, specialty, modality, price, language, sort])
+  }, [query, specialty, modality, price, language, sort, professionals])
 
   const activeFilters = [
     specialty && {
@@ -154,7 +161,7 @@ export function Directory() {
             <div className="flex flex-wrap gap-2 text-[0.72rem]">
               <span className="inline-flex items-center gap-1.5 rounded-full border border-forest-900/10 bg-cream-50 px-3 py-1.5 font-medium text-forest-800">
                 <Users className="h-3.5 w-3.5 text-forest-500" aria-hidden="true" />
-                {PROFESSIONALS.length} perfiles de muestra
+                {professionals.length} profesionales publicados
               </span>
               <span className="inline-flex items-center gap-1.5 rounded-full border border-forest-900/10 bg-cream-50 px-3 py-1.5 font-medium text-forest-800">
                 <Globe2 className="h-3.5 w-3.5 text-forest-500" aria-hidden="true" />
@@ -162,8 +169,6 @@ export function Directory() {
               </span>
             </div>
           </div>
-
-          <DemoNotice className="mt-6 max-w-3xl" />
         </div>
       </section>
 
@@ -175,6 +180,7 @@ export function Directory() {
               modality={modality}
               price={price}
               language={language}
+              languages={languageOptions}
               onChange={updateFilter}
               onClear={clearFilters}
             />
@@ -224,6 +230,7 @@ export function Directory() {
                     modality={modality}
                     price={price}
                     language={language}
+                    languages={languageOptions}
                     onChange={updateFilter}
                     onClear={clearFilters}
                   />
@@ -357,8 +364,8 @@ export function Directory() {
           </div>
           <p className="mt-5 inline-flex items-center gap-1.5 text-[0.72rem] text-muted">
             <Check className="h-3.5 w-3.5 text-forest-500" aria-hidden="true" />
-            Los perfiles incluyen licencia, formación y enfoque. En producción, la verificación es
-            obligatoria antes de publicar.
+            Los perfiles incluyen licencia, formación y enfoque. La verificación es obligatoria
+            antes de publicar.
           </p>
         </div>
       </section>
@@ -371,11 +378,20 @@ interface FilterPanelProps {
   modality: string
   price: string
   language: string
+  languages: string[]
   onChange: (key: string, value: string) => void
   onClear: () => void
 }
 
-function FilterPanel({ specialty, modality, price, language, onChange, onClear }: FilterPanelProps) {
+function FilterPanel({
+  specialty,
+  modality,
+  price,
+  language,
+  languages,
+  onChange,
+  onClear,
+}: FilterPanelProps) {
   return (
     <div className="card p-5">
       <div className="flex items-center justify-between gap-3">
@@ -460,7 +476,7 @@ function FilterPanel({ specialty, modality, price, language, onChange, onClear }
             className="h-10 w-full rounded-xl border border-forest-900/15 bg-cream-50 px-3 text-[0.8rem] text-forest-900 focus:border-forest-500 focus:outline-none focus:ring-2 focus:ring-forest-300"
           >
             <option value="">Cualquiera</option>
-            {LANGUAGES.map((item) => (
+            {languages.map((item) => (
               <option key={item} value={item}>
                 {item}
               </option>
@@ -470,7 +486,7 @@ function FilterPanel({ specialty, modality, price, language, onChange, onClear }
       </div>
 
       <p className="mt-5 border-t border-forest-900/10 pt-4 text-[0.68rem] leading-5 text-muted">
-        Los precios son orientativos, en USD y por sesión de 50 minutos (datos de muestra).
+        Los precios son orientativos, en USD y por sesión de 50 minutos.
       </p>
     </div>
   )

@@ -1,3 +1,5 @@
+import { z } from 'zod'
+
 /**
  * Catálogo de especialidades y profesionales.
  *
@@ -71,8 +73,20 @@ export const SPECIALTIES = [
 ] as const
 
 export type SpecialtyId = (typeof SPECIALTIES)[number]['id']
-export type Modality = 'video' | 'chat' | 'telefono'
-export type ProfessionalRole = 'psicologo' | 'psiquiatra'
+export const ROLES = ['psicologo', 'psiquiatra'] as const
+export type ProfessionalRole = (typeof ROLES)[number]
+export const MODALITIES = ['video', 'chat', 'telefono'] as const
+export type Modality = (typeof MODALITIES)[number]
+
+/** Idiomas sugeridos en el panel de administración. */
+export const COMMON_LANGUAGES = [
+  'Español',
+  'Inglés',
+  'Portugués',
+  'Francés',
+  'Italiano',
+  'Alemán',
+] as const
 
 export const MODALITY_LABELS: Record<Modality, string> = {
   video: 'Videollamada',
@@ -397,3 +411,78 @@ export function specialtyLabel(id: string): string {
 export function formatPrice(priceUsd: number): string {
   return `US$${priceUsd}`
 }
+
+/** Origen de los perfiles que muestra el sitio público. */
+export type ProfessionalsSource = 'database' | 'demo'
+
+export interface ProfessionalListResponse {
+  ok: true
+  count: number
+  source: ProfessionalsSource
+  professionals: Professional[]
+}
+
+export interface AdminProfessionalsResponse {
+  ok: true
+  storage: 'supabase' | 'memory'
+  professionals: Professional[]
+}
+
+export interface AdminLoginResponse {
+  ok: true
+  token: string
+  expiresAt: string
+}
+
+const SPECIALTY_ID_VALUES = SPECIALTIES.map((specialty) => specialty.id) as [
+  SpecialtyId,
+  ...SpecialtyId[],
+]
+
+/**
+ * Datos que el desarrollador puede introducir desde el panel. Los campos
+ * opcionales se completan con valores razonables en el servidor.
+ */
+export const professionalInputSchema = z.object({
+  name: z
+    .string()
+    .trim()
+    .min(3, { message: 'Escribe el nombre completo (mínimo 3 caracteres).' })
+    .max(80, { message: 'El nombre es demasiado largo.' }),
+  specialties: z
+    .array(z.enum(SPECIALTY_ID_VALUES, { message: 'Selecciona una especialidad válida.' }))
+    .min(1, { message: 'Selecciona al menos una especialidad.' })
+    .max(3, { message: 'Puedes seleccionar hasta tres especialidades.' }),
+  languages: z
+    .array(
+      z
+        .string()
+        .trim()
+        .min(2, { message: 'Cada idioma debe tener al menos 2 caracteres.' })
+        .max(30, { message: 'El nombre del idioma es demasiado largo.' }),
+    )
+    .min(1, { message: 'Indica al menos un idioma.' })
+    .max(8, { message: 'Puedes indicar hasta ocho idiomas.' }),
+  experienceYears: z
+    .number({ message: 'Indica los años de experiencia.' })
+    .int({ message: 'Los años de experiencia deben ser un número entero.' })
+    .min(1, { message: 'Indica al menos un año de experiencia.' })
+    .max(60, { message: 'Los años de experiencia no pueden superar 60.' }),
+  priceUsd: z
+    .number({ message: 'Indica el precio por sesión.' })
+    .int({ message: 'El precio debe ser un número entero de dólares.' })
+    .min(1, { message: 'El precio debe ser mayor que cero.' })
+    .max(1000, { message: 'El precio no puede superar US$1000.' }),
+  role: z.enum(ROLES).default('psicologo'),
+  modalities: z.array(z.enum(MODALITIES)).min(1, { message: 'Selecciona al menos una modalidad.' }).max(3).default(['video']),
+  title: z.string().trim().max(140, { message: 'El título es demasiado largo.' }).optional(),
+  location: z.string().trim().max(80, { message: 'La ubicación es demasiado larga.' }).optional(),
+  country: z.string().trim().max(60, { message: 'El país es demasiado largo.' }).optional(),
+  bio: z.string().trim().max(1000, { message: 'La biografía no puede superar 1000 caracteres.' }).optional(),
+  approach: z.string().trim().max(1000, { message: 'El enfoque no puede superar 1000 caracteres.' }).optional(),
+  nextSlot: z.string().trim().max(40, { message: 'La disponibilidad es demasiado larga.' }).optional(),
+  availabilityNote: z.string().trim().max(200, { message: 'La nota de disponibilidad es demasiado larga.' }).optional(),
+  featured: z.boolean().default(false),
+})
+
+export type ProfessionalInput = z.infer<typeof professionalInputSchema>

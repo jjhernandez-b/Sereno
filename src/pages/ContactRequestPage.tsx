@@ -1,4 +1,5 @@
 import {
+  useEffect,
   useState,
   type FormEvent,
   type InputHTMLAttributes,
@@ -36,17 +37,16 @@ import {
 import {
   MODALITY_LABELS,
   formatPrice,
-  getProfessional,
   type Modality,
 } from '../../shared/professionals'
 import { usePageMeta } from '../hooks/usePageMeta'
+import { useProfessionals } from '../providers/ProfessionalsProvider'
 import { ApiError, submitContactRequest } from '../lib/api'
 import { rememberConfirmation } from '../lib/confirmation'
 import { cn } from '../lib/format'
 import { Avatar } from '../components/Primitives'
 import { LinkButton } from '../components/Button'
 import { CrisisNotice } from '../components/CrisisNotice'
-import { DemoNotice } from '../components/DemoNotice'
 
 interface FormState {
   fullName: string
@@ -72,7 +72,8 @@ const MODALITY_ICONS: Record<Modality, typeof Video> = {
 
 export function ContactRequestPage() {
   const { slug } = useParams<{ slug: string }>()
-  const professional = getProfessional(slug)
+  const { professionals, loading } = useProfessionals()
+  const professional = professionals.find((candidate) => candidate.slug === slug)
   const navigate = useNavigate()
 
   const [form, setForm] = useState<FormState>({
@@ -94,11 +95,32 @@ export function ContactRequestPage() {
   const [formError, setFormError] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
+  useEffect(() => {
+    if (!professional) return
+    setForm((previous) =>
+      previous.modality === 'indiferente'
+        ? { ...previous, modality: professional.modalities[0] ?? 'indiferente' }
+        : previous,
+    )
+  }, [professional])
+
   usePageMeta({
     title: professional ? `Solicitar cita con ${professional.name}` : 'Solicitar cita',
     description:
       'Envía una solicitud confidencial para una primera conversación con un profesional de salud mental. Sin compromiso y sin cobros al enviar.',
   })
+
+  if (!professional && loading) {
+    return (
+      <section className="page-container py-20 text-center">
+        <span
+          className="mx-auto inline-flex h-10 w-10 animate-spin rounded-full border-2 border-forest-300 border-t-forest-700"
+          aria-hidden="true"
+        />
+        <p className="mt-4 text-[0.9rem] text-muted">Cargando profesional…</p>
+      </section>
+    )
+  }
 
   if (!professional) {
     return (
@@ -565,7 +587,6 @@ export function ContactRequestPage() {
             </div>
 
             <CrisisNotice className="mt-4" compact />
-            <DemoNotice className="mt-4" />
           </aside>
         </div>
       </section>

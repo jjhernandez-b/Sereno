@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, ArrowRight, RotateCcw, Sparkles } from 'lucide-react'
-import { PROFESSIONALS, SPECIALTIES, type Modality, type SpecialtyId } from '../../shared/professionals'
+import { SPECIALTIES, type Modality, type SpecialtyId } from '../../shared/professionals'
 import { cn } from '../lib/format'
+import { useProfessionals } from '../providers/ProfessionalsProvider'
 import { Button } from './Button'
 
 type FocusChoice = SpecialtyId | 'no-se'
@@ -47,6 +48,7 @@ const STEP_HINTS = [
 
 export function MatchQuiz() {
   const navigate = useNavigate()
+  const { professionals } = useProfessionals()
   const [step, setStep] = useState(0)
   const [focus, setFocus] = useState<FocusChoice | null>(null)
   const [modality, setModality] = useState<ModalityChoice | null>(null)
@@ -54,7 +56,7 @@ export function MatchQuiz() {
 
   const maxPrice = BUDGET_OPTIONS.find((option) => option.id === budget)?.max ?? null
 
-  const matches = PROFESSIONALS.filter((professional) => {
+  const matches = professionals.filter((professional) => {
     const focusMatches = focus === 'no-se' || focus === null || professional.specialties.includes(focus)
     const modalityMatches =
       modality === 'indiferente' ||

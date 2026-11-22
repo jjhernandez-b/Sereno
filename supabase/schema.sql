@@ -46,6 +46,55 @@ alter table public.contact_requests enable row level security;
 revoke all on table public.contact_requests from anon, authenticated;
 grant select, insert, update, delete on table public.contact_requests to service_role;
 
+-- ---------------------------------------------------------------------------
+-- Directorio de profesionales
+-- ---------------------------------------------------------------------------
+-- Los perfiles que se muestran en el sitio público. Solo el backend con
+-- service_role puede leerlos y modificarlos; el panel /admin nunca usa la
+-- service role key desde el navegador.
+create table if not exists public.professionals (
+  slug text primary key,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  name text not null,
+  role text not null default 'psicologo' check (role in ('psicologo', 'psiquiatra')),
+  title text not null default '',
+  verification text not null default 'verified' check (verification in ('demo', 'verified')),
+  experience_years integer not null check (experience_years between 0 and 60),
+  location text not null default '',
+  country text not null default '',
+  languages text[] not null default '{}',
+  specialties text[] not null default '{}',
+  modalities text[] not null default '{video}',
+  price_usd integer not null check (price_usd > 0 and price_usd <= 1000),
+  bio text not null default '',
+  approach text not null default '',
+  focus_tags text[] not null default '{}',
+  credentials text[] not null default '{}',
+  session_includes text[] not null default '{}',
+  availability_note text not null default '',
+  next_slot text not null default 'Disponible',
+  featured boolean not null default false,
+  avatar_tone integer not null default 0
+);
+
+comment on table public.professionals is
+  'Directorio de profesionales. Si tiene filas, sustituye a los perfiles de ejemplo del frontend.';
+comment on column public.professionals.slug is
+  'Identificador público usado en /profesionales/:slug (se genera desde el nombre).';
+comment on column public.professionals.verification is
+  'demo: dato de ejemplo; verified: perfil añadido desde el panel del desarrollador.';
+
+create index if not exists professionals_created_at_idx
+  on public.professionals (created_at desc);
+create index if not exists professionals_featured_idx
+  on public.professionals (featured);
+
+alter table public.professionals enable row level security;
+
+revoke all on table public.professionals from anon, authenticated;
+grant select, insert, update, delete on table public.professionals to service_role;
+
 -- Retención: elimina solicitudes anteriores al periodo indicado (180 días
 -- por defecto). Devuelve cuántas filas se borraron.
 create or replace function public.delete_expired_contact_requests(retention_days integer default 180)

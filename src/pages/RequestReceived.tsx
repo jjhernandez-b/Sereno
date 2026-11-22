@@ -6,7 +6,6 @@ import { usePageMeta } from '../hooks/usePageMeta'
 import { formatDateTime } from '../lib/format'
 import { LinkButton } from '../components/Button'
 import { CrisisNotice } from '../components/CrisisNotice'
-import { DemoNotice } from '../components/DemoNotice'
 
 export function RequestReceived() {
   const location = useLocation()
@@ -139,7 +138,6 @@ export function RequestReceived() {
             </Link>
           </div>
 
-          <DemoNotice className="mt-4" />
           <CrisisNotice className="mt-4" compact />
         </div>
       </div>

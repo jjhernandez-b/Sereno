@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
   createReference,
+  fromContactRequestRow,
+  listContactRequests,
+  persistContactRequest,
   storageMode,
   toContactRequestRow,
   toStoredRequest,
@@ -75,6 +78,48 @@ describe('toContactRequestRow', () => {
     expect(row.source).toBe('web')
     expect('professionalSlug' in row).toBe(false)
     expect('website' in row).toBe(false)
+  })
+})
+
+describe('fromContactRequestRow', () => {
+  it('restaura una solicitud desde una fila de Supabase', () => {
+    const stored = toStoredRequest(data, 'Valentina Ríos')
+    const restored = fromContactRequestRow(toContactRequestRow(stored))
+
+    expect(restored).toEqual(stored)
+  })
+})
+
+describe('listContactRequests', () => {
+  it('lista las solicitudes en memoria de la más reciente a la más antigua', async () => {
+    const previousUrl = process.env.SUPABASE_URL
+    const previousKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+    delete process.env.SUPABASE_URL
+    delete process.env.SUPABASE_SERVICE_ROLE_KEY
+
+    try {
+      const older = {
+        ...toStoredRequest(data, 'Valentina Ríos'),
+        reference: 'SR-AAAAAA',
+        createdAt: '2026-01-01T10:00:00.000Z',
+      }
+      const newer = {
+        ...toStoredRequest(data, 'Valentina Ríos'),
+        reference: 'SR-BBBBBB',
+        createdAt: '2026-01-02T10:00:00.000Z',
+      }
+
+      await persistContactRequest(older)
+      await persistContactRequest(newer)
+
+      const result = await listContactRequests()
+      expect(result.storage).toBe('memory')
+      expect(result.requests[0].reference).toBe('SR-BBBBBB')
+      expect(result.requests.some((request) => request.reference === 'SR-AAAAAA')).toBe(true)
+    } finally {
+      if (previousUrl !== undefined) process.env.SUPABASE_URL = previousUrl
+      if (previousKey !== undefined) process.env.SUPABASE_SERVICE_ROLE_KEY = previousKey
+    }
   })
 })
 

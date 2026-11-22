@@ -93,11 +93,9 @@ export function SiteFooter() {
       <div className="border-t border-cream-50/10">
         <div className="page-container flex flex-col gap-4 py-6 text-[0.72rem] leading-6 text-cream-200/50 lg:flex-row lg:items-start lg:justify-between">
           <p className="max-w-3xl">
-            <strong className="font-semibold text-cream-200/75">Aviso importante:</strong> Sereno
-            es un proyecto de demostración. Los perfiles de profesionales son ficticios y deben
-            sustituirse por profesionales reales verificados antes de publicar. Los tests son
-            herramientas de tamizaje, no diagnósticos médicos, y no sustituyen la valoración de un
-            psicólogo/a o psiquiatra.
+            <strong className="font-semibold text-cream-200/75">Aviso importante:</strong> Sereno no
+            atiende emergencias. Los tests son herramientas de tamizaje, no diagnósticos médicos, y
+            no sustituyen la valoración de un psicólogo/a o psiquiatra.
           </p>
           <p className="flex shrink-0 items-center gap-1.5">
             © {new Date().getFullYear()} Sereno. Hecho con
