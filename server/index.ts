@@ -1,6 +1,6 @@
 /**
  * Servidor local de desarrollo.
- * En Vercel la app Express se expone desde api/[...path].ts.
+ * En Vercel la app Express se expone desde api/index.ts.
  */
 
 export {}
