@@ -173,7 +173,8 @@ Copia `.env.example` y ajusta lo necesario. Todas son opcionales para desarrollo
 | `npm run dev` | Vite + API en paralelo |
 | `npm run dev:web` | Solo frontend |
 | `npm run dev:api` | Solo API con recarga |
-| `npm run build` | Typecheck + build de producción a `dist/` |
+| `npm run build` | Typecheck + build de producción a `dist/` y empaquetado de la API |
+| `npm run build:api` | Empaqueta la API de Vercel en `api/index.js` |
 | `npm run preview` | Previsualiza el build |
 | `npm run typecheck` | TypeScript sin emitir |
 | `npm test` | Vitest en modo run |
@@ -193,7 +194,7 @@ Copia `.env.example` y ajusta lo necesario. Todas son opcionales para desarrollo
 3. Vercel detecta Vite. El `vercel.json` ya define:
    - `buildCommand: npm run build`
    - `outputDirectory: dist`
-   - reescrituras de `/api` y `/api/*` a la función `api/index.ts` (Express)
+   - reescrituras de `/api` y `/api/*` a la función `api/index.js` (Express, generada desde `server/vercel-entry.ts`)
    - reescritura SPA para el resto de rutas
    - cabeceras de seguridad básicas
 4. Añade las variables de entorno en **Project → Settings → Environment Variables** (opcional pero recomendado):
